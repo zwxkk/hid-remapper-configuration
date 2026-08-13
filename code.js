@@ -34,8 +34,10 @@ const LAYERS_USAGE_PAGE = 0xFFF10000;
 const EXPR_USAGE_PAGE = 0xFFF30000;
 const MIDI_USAGE_PAGE = 0xFFF70000;
 const BUTTON_USAGE_PAGE = 0x00090000;
-const MACRO_DELAY_FIXED = 0xFFFF0001;
-const MACRO_DELAY_RANDOM = 0xFFFF0002;
+const MACRO_DELAY_FIXED = '0xFFFF0001';
+const MACRO_DELAY_RANDOM = '0xFFFF0002';
+const MACRO_PRESS = '0xFFFF0003';
+const MACRO_RELEASE = '0xFFFF0004';
 
 const RESET_INTO_BOOTSEL = 1;
 const SET_CONFIG = 2;
@@ -657,21 +659,20 @@ function set_macros_ui_state() {
             let i = 0;
             while (i < entry.length) {
                 const usage = entry[i];
-                const usageLower = String(usage).toLowerCase();
-                if (usageLower === '0xffff0001') {
+                if (usage === '0xffff0001') {
                     // 固定延迟
                     i++;
                     if (i < entry.length) {
-                        const ms = entry[i];
+                        const ms = entry[i] & 0xFFFF;
                         const item_element = add_macro_item(entry_element);
                         const btn = item_element.querySelector('.macro_item_usage');
-                        btn.setAttribute('data-hid-usage', '0xFFFF0001');
+                        btn.setAttribute('data-hid-usage', MACRO_DELAY_FIXED);
                         btn.setAttribute('data-delay-ms', ms);
                         btn.querySelector('.button_label').innerText = '固定延迟 ' + ms + 'ms';
-                        btn.title = '固定延迟 ' + ms + 'ms';
+                        btn.title = usage;
                         i++;
                     }
-                } else if (usageLower === '0xffff0002') {
+                } else if (usage === '0xffff0002') {
                     // 随机延迟
                     i++;
                     if (i < entry.length) {
@@ -680,13 +681,29 @@ function set_macros_ui_state() {
                         const max = params & 0xFFFF;
                         const item_element = add_macro_item(entry_element);
                         const btn = item_element.querySelector('.macro_item_usage');
-                        btn.setAttribute('data-hid-usage', '0xFFFF0002');
+                        btn.setAttribute('data-hid-usage', MACRO_DELAY_RANDOM);
                         btn.setAttribute('data-delay-min', min);
                         btn.setAttribute('data-delay-max', max);
                         btn.querySelector('.button_label').innerText = '随机延迟 ' + min + '-' + max + 'ms';
-                        btn.title = '随机延迟 ' + min + '-' + max + 'ms';
+                        btn.title = usage;
                         i++;
                     }
+                } else if (usage === '0xffff0003') {
+                    // 按下
+                    const item_element = add_macro_item(entry_element);
+                    const btn = item_element.querySelector('.macro_item_usage');
+                    btn.querySelector('.button_label').innerText = '按下';
+                    btn.title = usage;
+                    btn.setAttribute('data-hid-usage', MACRO_PRESS);
+                    i++;
+                } else if (usage === '0xffff0004') {
+                    // 松开
+                    const item_element = add_macro_item(entry_element);
+                    const btn = item_element.querySelector('.macro_item_usage');
+                    btn.querySelector('.button_label').innerText = '松开';
+                    btn.title = usage;
+                    btn.setAttribute('data-hid-usage', MACRO_RELEASE);
+                    i++;
                 } else {
                     const item_element = add_macro_item(entry_element);
                     const btn = item_element.querySelector('.macro_item_usage');
@@ -1189,13 +1206,13 @@ function show_usage_modal(mapping_, source_or_target, element_) {
                     const usage = clone.getAttribute('data-hid-usage');
                     const element = modal_return_element;
 
-                    if (usage === '0xFFFF0001') {
+                    if (usage === MACRO_DELAY_FIXED) {
                         // 固定延迟
                         const ms = prompt('请输入延迟毫秒数 (1-65535):', '20');
                         if (ms !== null) {
                             const ms_int = parseInt(ms, 10);
                             if (!isNaN(ms_int) && ms_int > 0 && ms_int <= 65535) {
-                                element.setAttribute('data-hid-usage', '0xFFFF0001');
+                                element.setAttribute('data-hid-usage', usage);
                                 element.setAttribute('data-delay-ms', ms_int);
                                 element.querySelector('.button_label').innerText = '固定延迟 ' + ms_int + 'ms';
                                 element.title = '固定延迟 ' + ms_int + 'ms';
@@ -1212,7 +1229,7 @@ function show_usage_modal(mapping_, source_or_target, element_) {
                         const modal_instance = bootstrap.Modal.getInstance(modal_el);
                         if (modal_instance) modal_instance.hide();
                         return;
-                    } else if (usage === '0xFFFF0002') {
+                    } else if (usage === MACRO_DELAY_RANDOM) {
                         // 随机延迟
                         const min = prompt('请输入最小延迟毫秒数 (1-65535):', '19');
                         if (min !== null) {
@@ -1222,7 +1239,7 @@ function show_usage_modal(mapping_, source_or_target, element_) {
                                 if (max !== null) {
                                     const max_int = parseInt(max, 10);
                                     if (!isNaN(max_int) && max_int > 0 && max_int <= 65535 && max_int >= min_int) {
-                                        element.setAttribute('data-hid-usage', '0xFFFF0002');
+                                        element.setAttribute('data-hid-usage', usage);
                                         element.setAttribute('data-delay-min', min_int);
                                         element.setAttribute('data-delay-max', max_int);
                                         element.querySelector('.button_label').innerText = '随机延迟 ' + min_int + '-' + max_int + 'ms';
@@ -1243,6 +1260,24 @@ function show_usage_modal(mapping_, source_or_target, element_) {
                         const modal_el = document.getElementById('target_usage_modal');
                         const modal_instance = bootstrap.Modal.getInstance(modal_el);
                         if (modal_instance) modal_instance.hide();
+                        return;
+                    } else if (usage === MACRO_PRESS) {
+                        // 按下
+                        element.querySelector('.button_label').innerText = '按下';
+                        element.setAttribute('data-hid-usage', usage);
+                        const modal_el = document.getElementById('target_usage_modal');
+                        const modal_instance = bootstrap.Modal.getInstance(modal_el);
+                        if (modal_instance) modal_instance.hide();
+                        set_macros_config_from_ui_state();
+                        return;
+                    } else if (usage === MACRO_RELEASE) {
+                        // 松开
+                        element.querySelector('.button_label').innerText = '松开';
+                        element.setAttribute('data-hid-usage', usage);
+                        const modal_el = document.getElementById('target_usage_modal');
+                        const modal_instance = bootstrap.Modal.getInstance(modal_el);
+                        if (modal_instance) modal_instance.hide();
+                        set_macros_config_from_ui_state();
                         return;
                     }
                     element.setAttribute('data-hid-usage', usage);
@@ -1445,18 +1480,18 @@ function set_macros_config_from_ui_state() {
                 const usage = btn.getAttribute('data-hid-usage');
                 if (!usage || usage === '0x00000000') continue;
 
-                if (usage === '0xFFFF0001') {
+                if (usage === MACRO_DELAY_FIXED) {
                     const ms = parseInt(btn.getAttribute('data-delay-ms'), 10);
                     if (!isNaN(ms) && ms > 0 && ms <= 65535) {
-                        entry.push('0xFFFF0001');
-                        entry.push(ms.toString());
+                        entry.push(MACRO_DELAY_FIXED);
+                        entry.push('0x' + ms.toString(16).padStart(8, '0'));
                     }
-                } else if (usage === '0xFFFF0002') {
+                } else if (usage === MACRO_DELAY_RANDOM) {
                     const min = parseInt(btn.getAttribute('data-delay-min'), 10);
                     const max = parseInt(btn.getAttribute('data-delay-max'), 10);
                     if (!isNaN(min) && !isNaN(max) && min > 0 && max > 0 && min <= 65535 && max <= 65535) {
                         const params = ((min << 16) | (max & 0xFFFF)) >>> 0;
-                        entry.push('0xFFFF0002');
+                        entry.push(MACRO_DELAY_RANDOM);
                         entry.push('0x' + params.toString(16).padStart(8, '0'));
                     }
                 } else {
